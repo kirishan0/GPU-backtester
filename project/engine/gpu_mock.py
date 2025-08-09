@@ -4,7 +4,6 @@ import argparse
 import csv
 import hashlib
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -13,15 +12,18 @@ from .logger import get_logger
 
 
 def _hash_int(text: str) -> int:
+    """文字列をSHA-256でハッシュ化して整数に変換する。"""
     return int(hashlib.sha256(text.encode("utf-8")).hexdigest(), 16)
 
 
-def _scale_int(value: int, min_v: int, max_v: int) -> float:
+def _scale_int(value: int, min_v: int, max_v: int) -> int:
+    """ハッシュ値を指定範囲の整数に正規化する。"""
     span = max_v - min_v
-    return min_v + (value % (span + 1))
+    return int(min_v + value % (span + 1))
 
 
 def _scale_float(value: int, min_v: float, max_v: float) -> float:
+    """ハッシュ値を指定範囲の浮動小数に正規化する。"""
     span = max_v - min_v
     return min_v + (value / (2**256 - 1)) * span
 
