@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, get_type_hints
+
 import yaml
 
 from .enums import OHLCOrder, SpreadPolicy
@@ -65,21 +66,80 @@ class Config:
         except FileNotFoundError as exc:
             raise ConfigError(str(exc)) from exc
 
+        hints = get_type_hints(cls)
         values: dict[str, Any] = {}
         for f in fields(cls):
             if f.name not in data:
                 raise ConfigError(f"missing field: {f.name}")
             val = data[f.name]
-            if f.type is SpreadPolicy:
+            typ = hints[f.name]
+
+            if typ is SpreadPolicy:
                 try:
                     values[f.name] = SpreadPolicy[val]
                 except KeyError as exc:
                     raise ConfigError(f"invalid spread_policy: {val}") from exc
-            elif f.type is OHLCOrder:
+                continue
+
+            if typ is OHLCOrder:
                 try:
                     values[f.name] = OHLCOrder[val]
                 except KeyError as exc:
                     raise ConfigError(f"invalid ohlc_order: {val}") from exc
-            else:
+                continue
+
+            if typ in (int, float):
+                if not isinstance(val, (int, float)) or isinstance(val, bool):
+                    raise ConfigError(f"invalid type for {f.name}: {type(val).__name__}")
+
+                if f.name in {
+                    "point",
+                    "tick_size",
+                    "tick_value",
+                    "min_lot",
+                    "lot_step",
+                    "max_lot",
+                    "rr",
+                    "rsi_period",
+                    "batch_size",
+                    "chunk_years",
+                    "gpu_debug_runs",
+                } and val <= 0:
+                    raise ConfigError(f"{f.name} must be > 0")
+                if f.name in {
+                    "fixed_spread_point",
+                    "commission_per_lot_round",
+                    "trailing_start_ratio",
+                    "trailing_width_points",
+                    "stoploss_points",
+                    "loss_streak_max",
+                } and val < 0:
+                    raise ConfigError(f"{f.name} must be >= 0")
+                if f.name == "reset_level" and not 0 <= val <= 100:
+                    raise ConfigError("reset_level must be between 0 and 100")
+                if f.name in {"overbought", "oversold"} and not 0 <= val <= 100:
+                    raise ConfigError(f"{f.name} must be between 0 and 100")
+
+                values[f.name] = float(val) if typ is float else int(val)
+                continue
+
+            if typ is bool:
+                if not isinstance(val, bool):
+                    raise ConfigError(f"invalid type for {f.name}: {type(val).__name__}")
                 values[f.name] = val
+                continue
+
+            if typ is str:
+                if not isinstance(val, str):
+                    raise ConfigError(f"invalid type for {f.name}: {type(val).__name__}")
+                values[f.name] = val
+                continue
+
+            values[f.name] = val
+
+        if values["max_lot"] < values["min_lot"]:
+            raise ConfigError("max_lot must be >= min_lot")
+        if values["overbought"] <= values["oversold"]:
+            raise ConfigError("overbought must be greater than oversold")
+
         return cls(**values)
