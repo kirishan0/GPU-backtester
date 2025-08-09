@@ -24,14 +24,10 @@ def compute_lot(balance: float, risk_ratio: float, sl_points: float, cfg: Config
 
 def apply_spread_policy(price: float, side: str, cfg: Config) -> float:
     """スプレッドポリシーを適用した価格を返す。"""
+    if cfg.spread_policy in (SpreadPolicy.NONE, SpreadPolicy.SL_ONLY):
+        return price
     spread = cfg.fixed_spread_point * cfg.point
-    if cfg.spread_policy == SpreadPolicy.NONE:
-        return price
-    if cfg.spread_policy == SpreadPolicy.SL_ONLY:
-        return price
-    if side == "BUY":
-        return price + spread
-    return price - spread
+    return price + spread if side == "BUY" else price - spread
 
 
 def commission_for_trade(lot: float, cfg: Config) -> float:
