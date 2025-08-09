@@ -31,13 +31,13 @@ def _scale_float(value: int, min_v: float, max_v: float) -> float:
 def _generate_metrics(seed: str) -> dict[str, Any]:
     base = _hash_int(seed)
     metrics = {
-        "total_trades": int(_scale_int(base, 80, 420)),
+        "total_trades": _scale_int(base, 80, 420),
         "win_rate": round(_scale_float(base >> 8, 0.35, 0.65), 4),
         "avg_win": round(_scale_float(base >> 16, 5, 25), 4),
         "avg_loss": round(_scale_float(base >> 24, -25, -5), 4),
         "profit_factor": round(_scale_float(base >> 32, 0.8, 2.5), 4),
-        "max_dd_pts": int(_scale_int(base >> 40, 50, 400)),
-        "net_profit_pts": int(_scale_int(base >> 48, -200, 500)),
+        "max_dd_pts": _scale_int(base >> 40, 50, 400),
+        "net_profit_pts": _scale_int(base >> 48, -200, 500),
     }
     return metrics
 
