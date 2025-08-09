@@ -11,11 +11,10 @@ import pandas as pd
 from .actions import validate_actions
 from .config import Config
 from .context import ReadOnlyCtx, StateView
-from .enums import OHLCOrder
 from .errors import SimulationError
 from .indicators import compute_rsi_and_flags
 from .logger import get_logger
-from .state import RunState, init_states
+from .state import init_states
 from .ticks import iter_minute_segments
 from .loader import load_user_ea
 from .bar_sim import simulate_bar
