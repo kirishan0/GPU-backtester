@@ -43,6 +43,9 @@ def validate_action(action: Dict[str, Any]) -> None:
         if act_type == "MODIFY":
             if not any(k in action for k in ("sl", "tp")):
                 raise ActionSchemaError("sl or tp required")
+            for key in ["sl", "tp"]:
+                if key in action and not isinstance(action[key], (int, float)):
+                    raise ActionSchemaError(f"{key} must be float")
         if act_type == "SET_TRAILING":
             if "start_ratio" in action and not (0 <= action["start_ratio"] <= 1):
                 raise ActionSchemaError("start_ratio out of range")
@@ -50,6 +53,8 @@ def validate_action(action: Dict[str, Any]) -> None:
         _ensure_keys(action, ["side", "lot", "price"])
         if action["side"] not in {"BUY", "SELL"}:
             raise ActionSchemaError("invalid side")
+        if not isinstance(action["lot"], (int, float)) or action["lot"] <= 0:
+            raise ActionSchemaError("invalid lot")
         if not isinstance(action["price"], (int, float)):
             raise ActionSchemaError("price must be float")
     elif act_type == "NOP":
