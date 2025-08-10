@@ -18,6 +18,8 @@ trailing_start_ratio: 0.5
 trailing_width_points: 10
 stoploss_points: 10
 rr: 2.0
+money_mode: "FIXED"
+risk_ratio: 0.01
 rsi_period: 14
 reset_level: 50
 overbought: 70

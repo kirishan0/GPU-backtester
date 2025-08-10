@@ -1,6 +1,11 @@
 from project.engine.config import Config
-from project.engine.enums import OHLCOrder, SpreadPolicy
-from project.engine.execution import value_per_point, normalize_lot, compute_lot
+from project.engine.enums import OHLCOrder, SpreadPolicy, MoneyMode
+from project.engine.execution import (
+    value_per_point,
+    normalize_lot,
+    compute_lot,
+    compute_lot_money,
+)
 
 
 def _cfg() -> Config:
@@ -25,6 +30,8 @@ def _cfg() -> Config:
         trailing_width_points=10,
         stoploss_points=10,
         rr=2.0,
+        money_mode=MoneyMode.FIXED,
+        risk_ratio=0.01,
         rsi_period=14,
         reset_level=50,
         overbought=70,
@@ -55,3 +62,9 @@ def test_compute_lot():
     cfg = _cfg()
     lot = compute_lot(1000, 0.01, 10, cfg)
     assert lot >= cfg.min_lot
+
+
+def test_compute_lot_money():
+    cfg = _cfg()
+    lot = compute_lot_money(0, cfg)
+    assert lot == cfg.min_lot
