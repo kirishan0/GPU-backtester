@@ -50,6 +50,10 @@ def test_normalize_lot():
     assert normalize_lot(0.23, cfg) == 0.2
     assert normalize_lot(2.0, cfg) == 1.0
 
+    cfg.ft6_mode = True
+    assert normalize_lot(0.005, cfg) == 0.01
+    assert normalize_lot(0.23, cfg) == 0.23
+
 
 def test_compute_lot():
     cfg = _cfg()

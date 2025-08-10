@@ -11,8 +11,15 @@ def value_per_point(cfg: Config) -> float:
 
 def normalize_lot(lot: float, cfg: Config) -> float:
     """ロットサイズを規定の刻みに正規化する。"""
-    stepped = round(lot / cfg.lot_step) * cfg.lot_step
-    return min(cfg.max_lot, max(cfg.min_lot, stepped))
+    if cfg.ft6_mode:
+        min_lot = 0.01
+        lot_step = 0.01
+    else:
+        min_lot = cfg.min_lot
+        lot_step = cfg.lot_step
+
+    stepped = round(lot / lot_step) * lot_step
+    return min(cfg.max_lot, max(min_lot, stepped))
 
 
 def compute_lot(balance: float, risk_ratio: float, sl_points: float, cfg: Config) -> float:
