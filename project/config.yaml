@@ -23,6 +23,11 @@ reset_level: 50
 overbought: 70
 oversold: 30
 loss_streak_max: 3
+money_mode: "PERCENT"
+step_percent: 0.01
+initial_risk_pct: 0.01
+fixed_lot: 0.1
+base_balance: 1000.0
 ft6_mode: false
 save_chart_flags: false
 batch_size: 1

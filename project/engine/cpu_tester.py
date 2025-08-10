@@ -44,7 +44,7 @@ def main() -> None:
             index=pd.date_range("2024-01-01", periods=10, freq="T"),
         )
         rsi, flags = compute_rsi_and_flags(data, cfg)
-        state = init_states()
+        state = init_states(cfg)
         history: List[dict] = []
         for i, (ts, *ticks) in enumerate(iter_minute_segments(data, cfg.ohlc_order)):
             view = StateView(
@@ -55,6 +55,9 @@ def main() -> None:
                 loss_streak=state.loss_streak,
                 buy_locked=state.buy_locked,
                 sell_locked=state.sell_locked,
+                lot=state.lot,
+                balance=state.balance,
+                risk_pct=state.risk_pct,
                 cfg=cfg,
             )
             ctx = ReadOnlyCtx(
@@ -70,7 +73,7 @@ def main() -> None:
             validate_actions(actions)
             for act in actions:
                 if act["type"] == "OPEN":
-                    state, closed, result = simulate_bar(
+                    state, closed, result, profit = simulate_bar(
                         state,
                         act["side"],
                         ticks,
@@ -81,8 +84,10 @@ def main() -> None:
                         cfg.trailing_start_ratio,
                         cfg.trailing_width_points,
                         cfg.stoploss_points,
+                        act["lot"],
                     )
                     if closed:
+                        state.update_after_trade(profit, cfg)
                         history.append({"time": ts, "result": result})
         out_dir = Path("outputs")
         out_dir.mkdir(exist_ok=True)

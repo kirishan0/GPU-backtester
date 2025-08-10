@@ -1,7 +1,7 @@
 import pandas as pd
 
 from project.engine.config import Config
-from project.engine.enums import OHLCOrder, SpreadPolicy
+from project.engine.enums import OHLCOrder, SpreadPolicy, MoneyMode
 from project.engine.indicators import compute_rsi_and_flags
 
 
@@ -32,6 +32,11 @@ def _cfg() -> Config:
         overbought=70,
         oversold=30,
         loss_streak_max=3,
+        money_mode=MoneyMode.PERCENT,
+        step_percent=0.01,
+        initial_risk_pct=0.01,
+        fixed_lot=0.1,
+        base_balance=1000.0,
         ft6_mode=False,
         save_chart_flags=False,
         batch_size=1,

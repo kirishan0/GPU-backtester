@@ -1,6 +1,11 @@
 from project.engine.config import Config
-from project.engine.enums import OHLCOrder, SpreadPolicy
-from project.engine.execution import value_per_point, normalize_lot, compute_lot
+from project.engine.enums import OHLCOrder, SpreadPolicy, MoneyMode
+from project.engine.execution import (
+    value_per_point,
+    normalize_lot,
+    compute_lot,
+    compute_lot_with_mode,
+)
 
 
 def _cfg() -> Config:
@@ -30,6 +35,11 @@ def _cfg() -> Config:
         overbought=70,
         oversold=30,
         loss_streak_max=3,
+        money_mode=MoneyMode.PERCENT,
+        step_percent=0.01,
+        initial_risk_pct=0.01,
+        fixed_lot=0.1,
+        base_balance=1000.0,
         ft6_mode=False,
         save_chart_flags=False,
         batch_size=1,
@@ -55,3 +65,25 @@ def test_compute_lot():
     cfg = _cfg()
     lot = compute_lot(1000, 0.01, 10, cfg)
     assert lot >= cfg.min_lot
+
+
+def test_compute_lot_with_mode_percent():
+    cfg = _cfg()
+    cfg.money_mode = MoneyMode.PERCENT
+    lot = compute_lot_with_mode(1000, 0.01, 10, cfg)
+    assert lot == compute_lot(1000, 0.01, 10, cfg)
+
+
+def test_compute_lot_with_mode_step():
+    cfg = _cfg()
+    cfg.money_mode = MoneyMode.STEP
+    lot = compute_lot_with_mode(1000, 0.01, 10, cfg)
+    assert lot == compute_lot(1000, 0.01, 10, cfg)
+
+
+def test_compute_lot_with_mode_fixed():
+    cfg = _cfg()
+    cfg.money_mode = MoneyMode.FIXED
+    cfg.fixed_lot = 0.3
+    lot = compute_lot_with_mode(1000, 0.02, 10, cfg)
+    assert lot == normalize_lot(0.3, cfg)
