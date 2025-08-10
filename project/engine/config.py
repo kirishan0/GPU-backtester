@@ -6,7 +6,7 @@ from typing import Any, get_type_hints
 
 import yaml
 
-from .enums import OHLCOrder, SpreadPolicy
+from .enums import OHLCOrder, SpreadPolicy, MoneyMode
 from .errors import ConfigError
 
 
@@ -34,6 +34,8 @@ class Config:
     trailing_width_points: int
     stoploss_points: int
     rr: float
+    money_mode: MoneyMode
+    risk_ratio: float
     rsi_period: int
     reset_level: float
     overbought: float
@@ -81,6 +83,13 @@ class Config:
                     raise ConfigError(f"invalid spread_policy: {val}") from exc
                 continue
 
+            if typ is MoneyMode:
+                try:
+                    values[f.name] = MoneyMode[val]
+                except KeyError as exc:
+                    raise ConfigError(f"invalid money_mode: {val}") from exc
+                continue
+
             if typ is OHLCOrder:
                 try:
                     values[f.name] = OHLCOrder[val]
@@ -113,6 +122,7 @@ class Config:
                     "trailing_width_points",
                     "stoploss_points",
                     "loss_streak_max",
+                    "risk_ratio",
                 } and val < 0:
                     raise ConfigError(f"{f.name} must be >= 0")
                 if f.name == "reset_level" and not 0 <= val <= 100:

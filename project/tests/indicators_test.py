@@ -1,7 +1,7 @@
 import pandas as pd
 
 from project.engine.config import Config
-from project.engine.enums import OHLCOrder, SpreadPolicy
+from project.engine.enums import OHLCOrder, SpreadPolicy, MoneyMode
 from project.engine.indicators import compute_rsi_and_flags
 
 
@@ -27,6 +27,8 @@ def _cfg() -> Config:
         trailing_width_points=10,
         stoploss_points=10,
         rr=2.0,
+        money_mode=MoneyMode.FIXED,
+        risk_ratio=0.01,
         rsi_period=14,
         reset_level=50,
         overbought=70,

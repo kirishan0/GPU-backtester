@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .config import Config
-from .enums import SpreadPolicy
+from .enums import SpreadPolicy, MoneyMode
 
 
 def value_per_point(cfg: Config) -> float:
@@ -11,7 +11,8 @@ def value_per_point(cfg: Config) -> float:
 
 def normalize_lot(lot: float, cfg: Config) -> float:
     """ロットサイズを規定の刻みに正規化する。"""
-    stepped = round(lot / cfg.lot_step) * cfg.lot_step
+    step = 0.01 if cfg.ft6_mode else cfg.lot_step
+    stepped = round(lot / step) * step
     return min(cfg.max_lot, max(cfg.min_lot, stepped))
 
 
@@ -39,3 +40,14 @@ def swap_for_day(lot: float, days: int, is_long: bool, cfg: Config) -> float:
     """スワップポイントを計算する。"""
     rate = cfg.swap_long_per_lot_day if is_long else cfg.swap_short_per_lot_day
     return lot * days * rate
+
+
+def compute_lot_money(loss_streak: int, cfg: Config) -> float:
+    """マネーモードに従いロットを計算する。"""
+    if cfg.money_mode is MoneyMode.GEOMETRIC:
+        raw = cfg.min_lot * (1 + cfg.risk_ratio) ** loss_streak
+    elif cfg.money_mode is MoneyMode.ARITHMETIC:
+        raw = cfg.min_lot + cfg.lot_step * loss_streak
+    else:
+        raw = cfg.min_lot
+    return normalize_lot(raw, cfg)

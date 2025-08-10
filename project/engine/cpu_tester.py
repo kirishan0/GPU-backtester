@@ -12,7 +12,7 @@ from .actions import validate_actions
 from .config import Config
 from .context import ReadOnlyCtx, StateView
 from .errors import SimulationError
-from .indicators import compute_rsi_and_flags
+from .indicators import compute_rsi_and_flags, resample_ohlc_m, rsi_wilder
 from .logger import get_logger
 from .state import init_states
 from .ticks import iter_minute_segments
@@ -43,7 +43,17 @@ def main() -> None:
             },
             index=pd.date_range("2024-01-01", periods=10, freq="T"),
         )
-        rsi, flags = compute_rsi_and_flags(data, cfg)
+        _rsi, flags = compute_rsi_and_flags(data, cfg)
+        rsi_m15 = (
+            rsi_wilder(resample_ohlc_m(data, 15)["close"], cfg.rsi_period)
+            .reindex(data.index, method="ffill")
+            .to_numpy()
+        )
+        rsi_h1 = (
+            rsi_wilder(resample_ohlc_m(data, 60)["close"], cfg.rsi_period)
+            .reindex(data.index, method="ffill")
+            .to_numpy()
+        )
         state = init_states()
         history: List[dict] = []
         for i, (ts, *ticks) in enumerate(iter_minute_segments(data, cfg.ohlc_order)):
@@ -61,7 +71,8 @@ def main() -> None:
                 bid=ticks[0],
                 ask=ticks[0] + cfg.fixed_spread_point * cfg.point,
                 point=cfg.point,
-                rsi=rsi[: i + 1],
+                rsi_m15=rsi_m15[: i + 1],
+                rsi_h1=rsi_h1[: i + 1],
                 flags={k: flags.iloc[i][k] for k in flags.columns},
                 state=view,
                 cfg=cfg,

@@ -14,3 +14,11 @@ class SpreadPolicy(Enum):
     NONE = 0
     SL_ONLY = 1
     FULL = 2
+
+
+class MoneyMode(Enum):
+    """ロット計算方法を表すモード。"""
+
+    GEOMETRIC = 0
+    ARITHMETIC = 1
+    FIXED = 2
