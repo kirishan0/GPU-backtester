@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import List
 
-import numpy as np
 import pandas as pd
 
 from .actions import validate_actions
@@ -26,6 +25,7 @@ def main() -> None:
     parser.add_argument("--config", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--log-level", default="INFO")
+    parser.add_argument("--data", required=True, help="OHLCデータのCSVファイルパス")
     args = parser.parse_args()
 
     cfg = Config.from_yaml(args.config)
@@ -33,16 +33,10 @@ def main() -> None:
 
     try:
         ea = load_user_ea()
-        # サンプルデータ生成（決定論的）
-        data = pd.DataFrame(
-            {
-                "open": np.linspace(150.0, 150.9, 10),
-                "high": np.linspace(150.2, 151.1, 10),
-                "low": np.linspace(149.8, 150.7, 10),
-                "close": np.linspace(150.1, 151.0, 10),
-            },
-            index=pd.date_range("2024-01-01", periods=10, freq="T"),
-        )
+        data = pd.read_csv(args.data)
+        data["time"] = pd.to_datetime(data["time"])
+        data.set_index("time", inplace=True)
+        data.sort_index(inplace=True)
         rsi, flags = compute_rsi_and_flags(data, cfg)
         state = init_states()
         history: List[dict] = []
