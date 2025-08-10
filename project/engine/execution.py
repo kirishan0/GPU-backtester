@@ -24,13 +24,6 @@ def compute_lot(balance: float, risk_ratio: float, sl_points: float, cfg: Config
     return normalize_lot(raw, cfg)
 
 
-def compute_lot_with_mode(balance: float, risk_pct: float, sl_points: float, cfg: Config) -> float:
-    """資金管理モードに応じてロットを計算する。"""
-    if cfg.money_mode == MoneyMode.FIXED:
-        return normalize_lot(cfg.fixed_lot, cfg)
-    return compute_lot(balance, risk_pct, sl_points, cfg)
-
-
 def apply_spread_policy(price: float, side: str, cfg: Config) -> float:
     """スプレッドポリシーを適用した価格を返す。"""
     if cfg.spread_policy == SpreadPolicy.NONE or cfg.spread_policy == SpreadPolicy.SL_ONLY:
