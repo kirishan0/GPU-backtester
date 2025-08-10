@@ -47,7 +47,7 @@ def compute_lot_money(loss_streak: int, cfg: Config) -> float:
     if cfg.money_mode is MoneyMode.GEOMETRIC:
         raw = cfg.min_lot * (1 + cfg.risk_ratio) ** loss_streak
     elif cfg.money_mode is MoneyMode.ARITHMETIC:
-        raw = cfg.min_lot + cfg.lot_step * loss_streak
+        raw = cfg.min_lot * (1 + cfg.risk_ratio * loss_streak)
     else:
         raw = cfg.min_lot
     return normalize_lot(raw, cfg)

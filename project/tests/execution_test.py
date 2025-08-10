@@ -66,5 +66,18 @@ def test_compute_lot():
 
 def test_compute_lot_money():
     cfg = _cfg()
+    # FIXED モード
     lot = compute_lot_money(0, cfg)
     assert lot == cfg.min_lot
+
+    # ARITHMETIC モード
+    cfg.money_mode = MoneyMode.ARITHMETIC
+    cfg.risk_ratio = 0.5
+    lot = compute_lot_money(2, cfg)
+    assert lot == 0.2
+
+    # GEOMETRIC モード
+    cfg.money_mode = MoneyMode.GEOMETRIC
+    cfg.risk_ratio = 1.0
+    lot = compute_lot_money(2, cfg)
+    assert lot == 0.4
