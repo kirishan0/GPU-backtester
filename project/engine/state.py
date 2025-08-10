@@ -4,6 +4,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict
 
 from .config import Config
+from .enums import MoneyMode
 
 
 @dataclass
@@ -43,7 +44,10 @@ class RunState:
             self.cycle_profit += profit
             threshold = cfg.base_balance * cfg.step_percent
             if threshold > 0 and self.cycle_profit >= threshold:
-                self.risk_pct += cfg.step_percent
+                if cfg.money_mode == MoneyMode.ARITHMETIC:
+                    self.risk_pct += cfg.step_percent
+                elif cfg.money_mode == MoneyMode.GEOMETRIC:
+                    self.risk_pct *= 1 + cfg.step_percent
                 self.cycle_profit -= threshold
 
 

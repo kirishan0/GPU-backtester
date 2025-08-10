@@ -35,7 +35,8 @@ class ReadOnlyCtx:
     bid: float
     ask: float
     point: float
-    rsi: Sequence[float]
+    rsi_m15: Sequence[float]
+    rsi_h1: Sequence[float]
     flags: dict[str, bool]
     state: StateView
     cfg: Config

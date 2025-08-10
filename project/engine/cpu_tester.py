@@ -37,7 +37,7 @@ def main() -> None:
         data["time"] = pd.to_datetime(data["time"])
         data.set_index("time", inplace=True)
         data.sort_index(inplace=True)
-        rsi, flags = compute_rsi_and_flags(data, cfg)
+        rsi_m15, rsi_h1, flags = compute_rsi_and_flags(data, cfg)
         state = init_states(cfg)
         history: List[dict] = []
         for i, (ts, *ticks) in enumerate(iter_minute_segments(data, cfg.ohlc_order)):
@@ -58,7 +58,8 @@ def main() -> None:
                 bid=ticks[0],
                 ask=ticks[0] + cfg.fixed_spread_point * cfg.point,
                 point=cfg.point,
-                rsi=rsi[: i + 1],
+                rsi_m15=rsi_m15[: i + 1],
+                rsi_h1=rsi_h1[: i + 1],
                 flags={k: flags.iloc[i][k] for k in flags.columns},
                 state=view,
                 cfg=cfg,

@@ -19,6 +19,6 @@ class SpreadPolicy(Enum):
 class MoneyMode(Enum):
     """ロット計算モードを表す列挙型。"""
 
-    PERCENT = 0
-    STEP = 1
+    GEOMETRIC = 0
+    ARITHMETIC = 1
     FIXED = 2
