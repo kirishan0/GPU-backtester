@@ -17,6 +17,7 @@ class Config:
     symbol: str
     timezone: str
     dst: bool
+    data_path: str
     spread_policy: SpreadPolicy
     fixed_spread_point: int
     commission_per_lot_round: float
@@ -148,6 +149,8 @@ class Config:
             if typ is str:
                 if not isinstance(val, str):
                     raise ConfigError(f"invalid type for {f.name}: {type(val).__name__}")
+                if f.name == "data_path" and not Path(val).exists():
+                    raise ConfigError(f"data_path does not exist: {val}")
                 values[f.name] = val
                 continue
 

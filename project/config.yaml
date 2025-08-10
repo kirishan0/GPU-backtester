@@ -1,6 +1,7 @@
 symbol: "USDJPY"
 timezone: "UTC"
 dst: false
+data_path: "data"
 spread_policy: "NONE"
 fixed_spread_point: 0
 commission_per_lot_round: 0.0

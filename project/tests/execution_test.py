@@ -13,6 +13,7 @@ def _cfg() -> Config:
         symbol="USDJPY",
         timezone="UTC",
         dst=False,
+        data_path="data",
         spread_policy=SpreadPolicy.NONE,
         fixed_spread_point=0,
         commission_per_lot_round=0.0,
