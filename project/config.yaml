@@ -24,7 +24,7 @@ reset_level: 50
 overbought: 70
 oversold: 30
 loss_streak_max: 3
-money_mode: "PERCENT"
+money_mode: "GEOMETRIC"
 step_percent: 0.01
 initial_risk_pct: 0.01
 fixed_lot: 0.1

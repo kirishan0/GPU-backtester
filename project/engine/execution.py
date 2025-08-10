@@ -29,10 +29,32 @@ def compute_lot(balance: float, risk_ratio: float, sl_points: float, cfg: Config
     return normalize_lot(raw, cfg)
 
 
-def compute_lot_with_mode(balance: float, risk_pct: float, sl_points: float, cfg: Config) -> float:
+def _geometric_risk(risk_pct: float, loss_streak: int, cfg: Config) -> float:
+    """幾何級数的にリスクを増減させる。"""
+    return risk_pct * (1 + cfg.step_percent) ** loss_streak
+
+
+def _arithmetic_risk(risk_pct: float, loss_streak: int, cfg: Config) -> float:
+    """等差級数的にリスクを増減させる。"""
+    return risk_pct + cfg.step_percent * loss_streak
+
+
+def compute_lot_with_mode(
+    balance: float,
+    risk_pct: float,
+    sl_points: float,
+    cfg: Config,
+    loss_streak: int = 0,
+) -> float:
     """資金管理モードに応じてロットを計算する。"""
     if cfg.money_mode == MoneyMode.FIXED:
         return normalize_lot(cfg.fixed_lot, cfg)
+    if cfg.money_mode == MoneyMode.GEOMETRIC:
+        eff = _geometric_risk(risk_pct, loss_streak, cfg)
+        return compute_lot(balance, eff, sl_points, cfg)
+    if cfg.money_mode == MoneyMode.ARITHMETIC:
+        eff = _arithmetic_risk(risk_pct, loss_streak, cfg)
+        return compute_lot(balance, eff, sl_points, cfg)
     return compute_lot(balance, risk_pct, sl_points, cfg)
 
 

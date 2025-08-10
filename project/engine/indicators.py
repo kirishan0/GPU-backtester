@@ -26,15 +26,27 @@ def rsi_wilder(series: pd.Series, period: int) -> pd.Series:
     return rsi
 
 
-def compute_rsi_and_flags(df: pd.DataFrame, cfg: Config) -> Tuple[np.ndarray, pd.DataFrame]:
-    """RSIと各種フラグを計算する。"""
-    rsi = rsi_wilder(df["close"], cfg.rsi_period).to_numpy()
+def compute_rsi_and_flags(
+    df: pd.DataFrame, cfg: Config
+) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame]:
+    """複数時間足のRSIと各種フラグを計算する。"""
+    close = df["close"]
+    rsi_m15 = (
+        rsi_wilder(close.resample("15T").last(), cfg.rsi_period)
+        .reindex(df.index, method="ffill")
+        .to_numpy()
+    )
+    rsi_h1 = (
+        rsi_wilder(close.resample("1H").last(), cfg.rsi_period)
+        .reindex(df.index, method="ffill")
+        .to_numpy()
+    )
     flags = pd.DataFrame(
         {
-            "overbought": rsi >= cfg.overbought,
-            "oversold": rsi <= cfg.oversold,
-            "reset": rsi >= cfg.reset_level,
+            "overbought": rsi_m15 >= cfg.overbought,
+            "oversold": rsi_m15 <= cfg.oversold,
+            "reset": rsi_m15 >= cfg.reset_level,
         },
         index=df.index,
     )
-    return rsi, flags
+    return rsi_m15, rsi_h1, flags

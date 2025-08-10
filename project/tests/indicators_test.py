@@ -33,7 +33,7 @@ def _cfg() -> Config:
         overbought=70,
         oversold=30,
         loss_streak_max=3,
-        money_mode=MoneyMode.PERCENT,
+        money_mode=MoneyMode.GEOMETRIC,
         step_percent=0.01,
         initial_risk_pct=0.01,
         fixed_lot=0.1,
@@ -51,6 +51,7 @@ def _cfg() -> Config:
 def test_compute_rsi_and_flags():
     cfg = _cfg()
     df = pd.DataFrame({"close": [1, 2, 3, 4, 5, 6]}, index=pd.date_range("2024", periods=6, freq="T"))
-    rsi, flags = compute_rsi_and_flags(df, cfg)
-    assert len(rsi) == 6
+    rsi_m15, rsi_h1, flags = compute_rsi_and_flags(df, cfg)
+    assert len(rsi_m15) == 6
+    assert len(rsi_h1) == 6
     assert flags.shape[0] == 6

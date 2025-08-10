@@ -36,7 +36,7 @@ def _cfg() -> Config:
         overbought=70,
         oversold=30,
         loss_streak_max=3,
-        money_mode=MoneyMode.PERCENT,
+        money_mode=MoneyMode.GEOMETRIC,
         step_percent=0.01,
         initial_risk_pct=0.01,
         fixed_lot=0.1,
@@ -72,16 +72,16 @@ def test_compute_lot():
     assert lot >= cfg.min_lot
 
 
-def test_compute_lot_with_mode_percent():
+def test_compute_lot_with_mode_geometric():
     cfg = _cfg()
-    cfg.money_mode = MoneyMode.PERCENT
+    cfg.money_mode = MoneyMode.GEOMETRIC
     lot = compute_lot_with_mode(1000, 0.01, 10, cfg)
     assert lot == compute_lot(1000, 0.01, 10, cfg)
 
 
-def test_compute_lot_with_mode_step():
+def test_compute_lot_with_mode_arithmetic():
     cfg = _cfg()
-    cfg.money_mode = MoneyMode.STEP
+    cfg.money_mode = MoneyMode.ARITHMETIC
     lot = compute_lot_with_mode(1000, 0.01, 10, cfg)
     assert lot == compute_lot(1000, 0.01, 10, cfg)
 
