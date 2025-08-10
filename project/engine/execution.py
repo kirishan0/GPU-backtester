@@ -12,8 +12,9 @@ def value_per_point(cfg: Config) -> float:
 def normalize_lot(lot: float, cfg: Config) -> float:
     """ロットサイズを規定の刻みに正規化する。"""
     step = 0.01 if cfg.ft6_mode else cfg.lot_step
+    min_lot = 0.01 if cfg.ft6_mode else cfg.min_lot
     stepped = round(lot / step) * step
-    return min(cfg.max_lot, max(cfg.min_lot, stepped))
+    return min(cfg.max_lot, max(min_lot, stepped))
 
 
 def compute_lot(balance: float, risk_ratio: float, sl_points: float, cfg: Config) -> float:
@@ -21,6 +22,13 @@ def compute_lot(balance: float, risk_ratio: float, sl_points: float, cfg: Config
     vpp = value_per_point(cfg)
     raw = balance * risk_ratio / (sl_points * vpp)
     return normalize_lot(raw, cfg)
+
+
+def compute_lot_with_mode(balance: float, risk_pct: float, sl_points: float, cfg: Config) -> float:
+    """資金管理モードに応じてロットを計算する。"""
+    if cfg.money_mode == MoneyMode.FIXED:
+        return normalize_lot(cfg.fixed_lot, cfg)
+    return compute_lot(balance, risk_pct, sl_points, cfg)
 
 
 def apply_spread_policy(price: float, side: str, cfg: Config) -> float:

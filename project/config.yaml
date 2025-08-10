@@ -1,6 +1,7 @@
 symbol: "USDJPY"
 timezone: "UTC"
 dst: false
+data_path: "data"
 spread_policy: "NONE"
 fixed_spread_point: 0
 commission_per_lot_round: 0.0
@@ -25,6 +26,10 @@ reset_level: 50
 overbought: 70
 oversold: 30
 loss_streak_max: 3
+step_percent: 0.01
+initial_risk_pct: 0.01
+fixed_lot: 0.1
+base_balance: 1000.0
 ft6_mode: false
 save_chart_flags: false
 batch_size: 1

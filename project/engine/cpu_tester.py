@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import List
 
-import numpy as np
 import pandas as pd
 
 from .actions import validate_actions
@@ -26,6 +25,7 @@ def main() -> None:
     parser.add_argument("--config", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--log-level", default="INFO")
+    parser.add_argument("--data", required=True, help="OHLCデータのCSVファイルパス")
     args = parser.parse_args()
 
     cfg = Config.from_yaml(args.config)
@@ -33,17 +33,11 @@ def main() -> None:
 
     try:
         ea = load_user_ea()
-        # サンプルデータ生成（決定論的）
-        data = pd.DataFrame(
-            {
-                "open": np.linspace(150.0, 150.9, 10),
-                "high": np.linspace(150.2, 151.1, 10),
-                "low": np.linspace(149.8, 150.7, 10),
-                "close": np.linspace(150.1, 151.0, 10),
-            },
-            index=pd.date_range("2024-01-01", periods=10, freq="T"),
-        )
-        _rsi, flags = compute_rsi_and_flags(data, cfg)
+        data = pd.read_csv(args.data)
+        data["time"] = pd.to_datetime(data["time"])
+        data.set_index("time", inplace=True)
+        data.sort_index(inplace=True)
+        _, flags = compute_rsi_and_flags(data, cfg)
         rsi_m15 = (
             rsi_wilder(resample_ohlc_m(data, 15)["close"], cfg.rsi_period)
             .reindex(data.index, method="ffill")
@@ -54,7 +48,7 @@ def main() -> None:
             .reindex(data.index, method="ffill")
             .to_numpy()
         )
-        state = init_states()
+        state = init_states(cfg)
         history: List[dict] = []
         for i, (ts, *ticks) in enumerate(iter_minute_segments(data, cfg.ohlc_order)):
             view = StateView(
@@ -65,6 +59,9 @@ def main() -> None:
                 loss_streak=state.loss_streak,
                 buy_locked=state.buy_locked,
                 sell_locked=state.sell_locked,
+                lot=state.lot,
+                balance=state.balance,
+                risk_pct=state.risk_pct,
                 cfg=cfg,
             )
             ctx = ReadOnlyCtx(
@@ -81,7 +78,7 @@ def main() -> None:
             validate_actions(actions)
             for act in actions:
                 if act["type"] == "OPEN":
-                    state, closed, result = simulate_bar(
+                    state, closed, result, profit = simulate_bar(
                         state,
                         act["side"],
                         ticks,
@@ -92,8 +89,10 @@ def main() -> None:
                         cfg.trailing_start_ratio,
                         cfg.trailing_width_points,
                         cfg.stoploss_points,
+                        act["lot"],
                     )
                     if closed:
+                        state.update_after_trade(profit, cfg)
                         history.append({"time": ts, "result": result})
         out_dir = Path("outputs")
         out_dir.mkdir(exist_ok=True)

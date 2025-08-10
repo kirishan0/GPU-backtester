@@ -17,6 +17,7 @@ class Config:
     symbol: str
     timezone: str
     dst: bool
+    data_path: str
     spread_policy: SpreadPolicy
     fixed_spread_point: int
     commission_per_lot_round: float
@@ -34,13 +35,17 @@ class Config:
     trailing_width_points: int
     stoploss_points: int
     rr: float
-    money_mode: MoneyMode
-    risk_ratio: float
     rsi_period: int
     reset_level: float
     overbought: float
     oversold: float
     loss_streak_max: int
+    money_mode: MoneyMode
+    risk_ratio: float
+    step_percent: float
+    initial_risk_pct: float
+    fixed_lot: float
+    base_balance: float
     ft6_mode: bool
     save_chart_flags: bool
     batch_size: int
@@ -113,6 +118,8 @@ class Config:
                     "batch_size",
                     "chunk_years",
                     "gpu_debug_runs",
+                    "base_balance",
+                    "initial_risk_pct",
                 } and val <= 0:
                     raise ConfigError(f"{f.name} must be > 0")
                 if f.name in {
@@ -123,6 +130,8 @@ class Config:
                     "stoploss_points",
                     "loss_streak_max",
                     "risk_ratio",
+                    "step_percent",
+                    "fixed_lot",
                 } and val < 0:
                     raise ConfigError(f"{f.name} must be >= 0")
                 if f.name == "reset_level" and not 0 <= val <= 100:
@@ -142,6 +151,8 @@ class Config:
             if typ is str:
                 if not isinstance(val, str):
                     raise ConfigError(f"invalid type for {f.name}: {type(val).__name__}")
+                if f.name == "data_path" and not Path(val).exists():
+                    raise ConfigError(f"data_path does not exist: {val}")
                 values[f.name] = val
                 continue
 

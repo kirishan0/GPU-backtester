@@ -13,6 +13,7 @@ def _cfg() -> Config:
         symbol="USDJPY",
         timezone="UTC",
         dst=False,
+        data_path="data",
         spread_policy=SpreadPolicy.NONE,
         fixed_spread_point=0,
         commission_per_lot_round=0.0,
@@ -30,13 +31,17 @@ def _cfg() -> Config:
         trailing_width_points=10,
         stoploss_points=10,
         rr=2.0,
-        money_mode=MoneyMode.FIXED,
-        risk_ratio=0.01,
         rsi_period=14,
         reset_level=50,
         overbought=70,
         oversold=30,
         loss_streak_max=3,
+        money_mode=MoneyMode.FIXED,
+        risk_ratio=0.01,
+        step_percent=0.01,
+        initial_risk_pct=0.01,
+        fixed_lot=0.1,
+        base_balance=1000.0,
         ft6_mode=False,
         save_chart_flags=False,
         batch_size=1,
@@ -56,6 +61,10 @@ def test_normalize_lot():
     cfg = _cfg()
     assert normalize_lot(0.23, cfg) == 0.2
     assert normalize_lot(2.0, cfg) == 1.0
+
+    cfg.ft6_mode = True
+    assert normalize_lot(0.005, cfg) == 0.01
+    assert normalize_lot(0.23, cfg) == 0.23
 
 
 def test_compute_lot():
