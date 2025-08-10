@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Tuple
 
 from .config import Config
+from .execution import value_per_point
 from .hit_rules import resolve_hit
 from .state import RunState
 
@@ -18,7 +19,8 @@ def simulate_bar(
     trailing_start_ratio: float,
     trailing_width_points: int,
     sl_points_eff: float,
-) -> Tuple[RunState, bool, str]:
+    lot: float,
+) -> Tuple[RunState, bool, str, float]:
     """1バー内のシンプルなシミュレーションを行う。"""
     if state.position_side is None:
         open_price = bid_ticks[0] if side == "BUY" else ask_ticks[0]
@@ -28,7 +30,8 @@ def simulate_bar(
         state.open_price = open_price
         state.sl = sl
         state.tp = tp
-        return state, False, ""
+        state.lot = lot
+        return state, False, "", 0.0
 
     # 既にポジションが存在する場合
     high = max(bid_ticks) if state.position_side == "BUY" else max(ask_ticks)
@@ -37,10 +40,14 @@ def simulate_bar(
     result = resolve_hit(state.position_side, high, low, state.sl, state.tp, going_up)
 
     closed = False
+    profit = 0.0
     if result in {"TP", "SL"}:
+        points = rr * sl_points_eff if result == "TP" else -sl_points_eff
+        profit = points * value_per_point(cfg) * (state.lot or 0)
         state.position_side = None
         state.open_price = None
         state.sl = None
         state.tp = None
+        state.lot = None
         closed = True
-    return state, closed, result
+    return state, closed, result, profit

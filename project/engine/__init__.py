@@ -1,5 +1,5 @@
 from .config import Config
-from .enums import OHLCOrder, SpreadPolicy
+from .enums import OHLCOrder, SpreadPolicy, MoneyMode
 from .errors import (
     ActionSchemaError,
     ConfigError,
@@ -12,6 +12,7 @@ __all__ = [
     "Config",
     "OHLCOrder",
     "SpreadPolicy",
+    "MoneyMode",
     "ActionSchemaError",
     "ConfigError",
     "EAValidationError",

@@ -6,7 +6,7 @@ from typing import Any, get_type_hints
 
 import yaml
 
-from .enums import OHLCOrder, SpreadPolicy
+from .enums import OHLCOrder, SpreadPolicy, MoneyMode
 from .errors import ConfigError
 
 
@@ -39,6 +39,11 @@ class Config:
     overbought: float
     oversold: float
     loss_streak_max: int
+    money_mode: MoneyMode
+    step_percent: float
+    initial_risk_pct: float
+    fixed_lot: float
+    base_balance: float
     ft6_mode: bool
     save_chart_flags: bool
     batch_size: int
@@ -88,6 +93,13 @@ class Config:
                     raise ConfigError(f"invalid ohlc_order: {val}") from exc
                 continue
 
+            if typ is MoneyMode:
+                try:
+                    values[f.name] = MoneyMode[val]
+                except KeyError as exc:
+                    raise ConfigError(f"invalid money_mode: {val}") from exc
+                continue
+
             if typ in (int, float):
                 if not isinstance(val, (int, float)) or isinstance(val, bool):
                     raise ConfigError(f"invalid type for {f.name}: {type(val).__name__}")
@@ -104,6 +116,8 @@ class Config:
                     "batch_size",
                     "chunk_years",
                     "gpu_debug_runs",
+                    "base_balance",
+                    "initial_risk_pct",
                 } and val <= 0:
                     raise ConfigError(f"{f.name} must be > 0")
                 if f.name in {
@@ -113,6 +127,8 @@ class Config:
                     "trailing_width_points",
                     "stoploss_points",
                     "loss_streak_max",
+                    "step_percent",
+                    "fixed_lot",
                 } and val < 0:
                     raise ConfigError(f"{f.name} must be >= 0")
                 if f.name == "reset_level" and not 0 <= val <= 100:

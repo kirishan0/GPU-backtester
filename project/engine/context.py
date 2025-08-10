@@ -18,6 +18,9 @@ class StateView:
     loss_streak: int
     buy_locked: bool
     sell_locked: bool
+    lot: float | None
+    balance: float
+    risk_pct: float
     cfg: Config
 
     def point(self) -> float:
