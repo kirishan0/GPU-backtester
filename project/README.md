@@ -39,6 +39,14 @@ python -m project.engine.gpu_proxy --config config.yaml --gpu-debug --run-id GPU
 python -m project.engine.gpu_proxy --config config.yaml --run-id GPUTASK_001
 ```
 
+## 簡易GUI
+
+```bash
+python -m project.gui
+```
+
+CPUテスターやGPUモックをGUIから実行でき、設定ファイルのパラメータも編集可能です。
+
 ## ログと出力
 
 - `logs/` に実行ログ
