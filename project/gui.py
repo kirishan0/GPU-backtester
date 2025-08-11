@@ -154,8 +154,8 @@ class BacktesterGUI(tk.Tk):
         mode = self.mode_var.get()
         data = self.data_entry.get()
 
-        if mode in {"cpu", "opt"} and not data:
-            messagebox.showerror("エラー", "CPU/最適化モードではデータCSVが必要です")
+        if mode == "cpu" and not data:
+            messagebox.showerror("エラー", "CPUモードではデータCSVが必要です")
             return
 
         # 設定ファイルを書き出し
@@ -179,10 +179,12 @@ class BacktesterGUI(tk.Tk):
                 return
 
             counter = count()
+            run_records: list[tuple[Dict[str, Any], str]] = []
 
             def evaluate(params: Dict[str, Any]) -> float:
                 idx = next(counter)
                 run_local = f"{run_id}_{idx}"
+                run_records.append((params.copy(), run_local))
                 cfg_dict = self.config_params.copy()
                 cfg_dict.update(params)
                 with open(config, "w", encoding="utf-8") as fh:
@@ -190,24 +192,41 @@ class BacktesterGUI(tk.Tk):
                 cmd = [
                     sys.executable,
                     "-m",
-                    "project.engine.cpu_tester",
+                    "project.engine.gpu_proxy",
                     "--config",
                     config,
                     "--run-id",
                     run_local,
-                    "--data",
-                    data,
+                    "--runs",
+                    "1",
                 ]
                 subprocess.run(cmd, capture_output=True, text=True)
                 try:
-                    with open(f"outputs/Manifest_{run_local}.json", "r", encoding="utf-8") as mf:
+                    with open(
+                        f"outputs/GPU/Run_{run_local}/0/Manifest.json", "r", encoding="utf-8"
+                    ) as mf:
                         manifest = json.load(mf)
-                    return float(manifest.get("trades", 0))
+                    metrics = manifest.get("metrics", {})
+                    return float(metrics.get("net_profit_pts", float("-inf")))
                 except Exception:
                     return float("-inf")
 
             try:
                 best_params, best_score = grid_search(param_grid, evaluate)
+                run_local = next(
+                    (rl for p, rl in run_records if p == best_params),
+                    None,
+                )
+                if run_local:
+                    try:
+                        with open(
+                            f"outputs/GPU/Run_{run_local}/0/Manifest.json", "r", encoding="utf-8"
+                        ) as mf:
+                            manifest = json.load(mf)
+                        metrics = manifest.get("metrics", {})
+                        best_score = float(metrics.get("net_profit_pts", best_score))
+                    except Exception:
+                        pass
                 output = f"最適パラメータ: {best_params}\nスコア: {best_score}"
             except Exception as exc:
                 output = f"最適化に失敗しました: {exc}"
