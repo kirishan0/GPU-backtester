@@ -47,7 +47,7 @@ class BacktesterGUI(tk.Tk):
 
         # 実行モード
         tk.Label(self, text="モード").grid(row=3, column=0, sticky="w")
-        self.mode_var = tk.StringVar(value="cpu")
+        self.mode_var = tk.StringVar(value="gpu")
         modes = [("CPU", "cpu"), ("GPUモック", "gpu_debug"), ("GPU", "gpu")]
         for idx, (text, value) in enumerate(modes):
             tk.Radiobutton(self, text=text, variable=self.mode_var, value=value).grid(row=3, column=1+idx, sticky="w")
