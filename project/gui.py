@@ -10,7 +10,11 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from typing import Any, Dict
 
+import json
+from itertools import count
+
 import yaml
+from project.engine.optimizer import grid_search
 
 
 class BacktesterGUI(tk.Tk):
@@ -48,16 +52,23 @@ class BacktesterGUI(tk.Tk):
         # 実行モード
         tk.Label(self, text="モード").grid(row=3, column=0, sticky="w")
         self.mode_var = tk.StringVar(value="cpu")
-        modes = [("CPU", "cpu"), ("GPUモック", "gpu_debug"), ("GPU", "gpu")]
+        modes = [("CPU", "cpu"), ("GPUモック", "gpu_debug"), ("GPU", "gpu"), ("最適化", "opt")]
         for idx, (text, value) in enumerate(modes):
             tk.Radiobutton(self, text=text, variable=self.mode_var, value=value).grid(row=3, column=1+idx, sticky="w")
 
+        # 最適化パラメータ
+        tk.Label(self, text="最適化パラメータ").grid(row=4, column=0, sticky="w")
+        self.opt_entry = tk.Entry(self, width=40)
+        self.opt_entry.insert(0, "optimize.yaml")
+        self.opt_entry.grid(row=4, column=1, padx=5, pady=5)
+        tk.Button(self, text="参照", command=self._select_opt_params).grid(row=4, column=2, padx=5)
+
         # 実行ボタン
-        tk.Button(self, text="開始", command=self._start).grid(row=4, column=0, columnspan=4, pady=10)
+        tk.Button(self, text="開始", command=self._start).grid(row=5, column=0, columnspan=4, pady=10)
 
         # 出力テキスト
         self.output = tk.Text(self, height=20, width=80)
-        self.output.grid(row=5, column=0, columnspan=4, padx=5, pady=5)
+        self.output.grid(row=6, column=0, columnspan=4, padx=5, pady=5)
 
         self._load_config()
 
@@ -84,6 +95,13 @@ class BacktesterGUI(tk.Tk):
         if path:
             self.data_entry.delete(0, tk.END)
             self.data_entry.insert(0, path)
+
+    def _select_opt_params(self) -> None:
+        """最適化パラメータファイルを選択します。"""
+        path = filedialog.askopenfilename(filetypes=[("YAML", "*.yaml"), ("YAML", "*.yml"), ("全て", "*.*")])
+        if path:
+            self.opt_entry.delete(0, tk.END)
+            self.opt_entry.insert(0, path)
 
     def _edit_parameters(self) -> None:
         """パラメータ編集ウィンドウを開きます。"""
@@ -136,8 +154,8 @@ class BacktesterGUI(tk.Tk):
         mode = self.mode_var.get()
         data = self.data_entry.get()
 
-        if mode == "cpu" and not data:
-            messagebox.showerror("エラー", "CPUモードではデータCSVが必要です")
+        if mode in {"cpu", "opt"} and not data:
+            messagebox.showerror("エラー", "CPU/最適化モードではデータCSVが必要です")
             return
 
         # 設定ファイルを書き出し
@@ -148,7 +166,52 @@ class BacktesterGUI(tk.Tk):
             messagebox.showerror("エラー", f"設定ファイルの書き込みに失敗しました: {exc}")
             return
 
-        if mode == "cpu":
+        if mode == "opt":
+            grid_path = self.opt_entry.get()
+            try:
+                with open(grid_path, "r", encoding="utf-8") as fh:
+                    param_grid = yaml.safe_load(fh) or {}
+            except Exception as exc:
+                messagebox.showerror("エラー", f"最適化パラメータの読み込みに失敗しました: {exc}")
+                return
+            if not param_grid:
+                messagebox.showerror("エラー", "最適化パラメータが空です")
+                return
+
+            counter = count()
+
+            def evaluate(params: Dict[str, Any]) -> float:
+                idx = next(counter)
+                run_local = f"{run_id}_{idx}"
+                cfg_dict = self.config_params.copy()
+                cfg_dict.update(params)
+                with open(config, "w", encoding="utf-8") as fh:
+                    yaml.safe_dump(cfg_dict, fh, allow_unicode=True)
+                cmd = [
+                    sys.executable,
+                    "-m",
+                    "project.engine.cpu_tester",
+                    "--config",
+                    config,
+                    "--run-id",
+                    run_local,
+                    "--data",
+                    data,
+                ]
+                subprocess.run(cmd, capture_output=True, text=True)
+                try:
+                    with open(f"outputs/Manifest_{run_local}.json", "r", encoding="utf-8") as mf:
+                        manifest = json.load(mf)
+                    return float(manifest.get("trades", 0))
+                except Exception:
+                    return float("-inf")
+
+            try:
+                best_params, best_score = grid_search(param_grid, evaluate)
+                output = f"最適パラメータ: {best_params}\nスコア: {best_score}"
+            except Exception as exc:
+                output = f"最適化に失敗しました: {exc}"
+        elif mode == "cpu":
             cmd = [
                 sys.executable,
                 "-m",
@@ -160,6 +223,15 @@ class BacktesterGUI(tk.Tk):
                 "--data",
                 data,
             ]
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True)
+            except Exception as exc:  # 例外発生時はメッセージを表示
+                output = f"実行に失敗しました: {exc}\n"
+            else:
+                output = result.stdout
+                if result.stderr:
+                    output += "\n[stderr]\n" + result.stderr
         elif mode == "gpu_debug":
             cmd = [
                 sys.executable,
@@ -171,6 +243,15 @@ class BacktesterGUI(tk.Tk):
                 "--run-id",
                 run_id,
             ]
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True)
+            except Exception as exc:  # 例外発生時はメッセージを表示
+                output = f"実行に失敗しました: {exc}\n"
+            else:
+                output = result.stdout
+                if result.stderr:
+                    output += "\n[stderr]\n" + result.stderr
         else:
             cmd = [
                 sys.executable,
@@ -182,14 +263,14 @@ class BacktesterGUI(tk.Tk):
                 run_id,
             ]
 
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-        except Exception as exc:  # 例外発生時はメッセージを表示
-            output = f"実行に失敗しました: {exc}\n"
-        else:
-            output = result.stdout
-            if result.stderr:
-                output += "\n[stderr]\n" + result.stderr
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True)
+            except Exception as exc:  # 例外発生時はメッセージを表示
+                output = f"実行に失敗しました: {exc}\n"
+            else:
+                output = result.stdout
+                if result.stderr:
+                    output += "\n[stderr]\n" + result.stderr
 
         # GUIスレッドで結果を表示
         self.output.after(0, self._append_output, output)
