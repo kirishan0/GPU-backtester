@@ -26,7 +26,7 @@ namespace NoBackgroundInput
     {
         public const string PluginGuid = "yourname.nobackgroundinput.pidfocus";
         public const string PluginName = "NoBackgroundInput_PIDFocus";
-        public const string PluginVersion = "1.4.2";
+        public const string PluginVersion = "1.4.3";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;
@@ -340,15 +340,18 @@ namespace NoBackgroundInput
 
             try
             {
+                // Button 自体と親階層のクリック判定を完全に殺す
                 btn.interactable = false;
                 btn.onClick.RemoveAllListeners();
 
-                // 当たり判定も含めて無効化
-                DisableClickableChain(go);
-                go.SetActive(false);
+                GameObject root = FindClickableRoot(btn.transform);
+
+                DisableClickableChain(root);
+                CollapseLayout(root);
+                root.SetActive(false);
 
                 NoBackgroundInputPlugin.Log?.LogInfo(
-                    $"[MenuPatch] NewGame Button 無効化 path='{path}', text='{label}'");
+                    $"[MenuPatch] NewGame Button 無効化 path='{path}', text='{label}', root='{GetPath(root)}'");
 
                 return 1;
             }
@@ -370,10 +373,11 @@ namespace NoBackgroundInput
             try
             {
                 // テキストから「行（メニュー項目）」っぽい Transform を推定して、その GameObject を丸ごと殺す
-                GameObject rowRoot = FindRowRoot(tmp.transform);
+                GameObject rowRoot = FindClickableRoot(tmp.transform);
                 string path = GetPath(rowRoot);
 
                 DisableClickableChain(rowRoot);
+                CollapseLayout(rowRoot);
                 rowRoot.SetActive(false);
 
                 NoBackgroundInputPlugin.Log?.LogInfo(
@@ -390,32 +394,73 @@ namespace NoBackgroundInput
         }
 
         /// <summary>
-        /// TMP_Text から「その行（メニュー項目）」っぽい Transform を推定する。
-        /// Canvas 型には触らず、親の名前に Row / Entry / Button / New が含まれるノードを優先的に選ぶ。
+        /// TMP_Text / Button から「クリック可能な行（メニュー項目）」っぽい Transform を推定する。
+        /// Selectable や IPointerClickHandler が見つかったらそこを優先し、Canvas まで遡る。
         /// </summary>
-        private static GameObject FindRowRoot(Transform t)
+        private static GameObject FindClickableRoot(Transform t)
         {
             if (t == null) throw new ArgumentNullException(nameof(t));
 
             Transform current = t;
-            Transform candidate = t; // デフォルトは自分自身
+            Transform lastBeforeCanvas = t;
 
-            // 親をルートまでたどりながら、「行っぽい名前」のノードを優先的に選ぶ
-            while (current.parent != null)
+            while (current != null)
             {
-                string name = current.name;
-                if (name.IndexOf("Row", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    name.IndexOf("Entry", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    name.IndexOf("Button", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    name.IndexOf("New", StringComparison.OrdinalIgnoreCase) >= 0)
+                // Canvas を超えたら終了（別 UI 階層には触らない）
+                if (current.GetComponent<Canvas>() != null)
                 {
-                    candidate = current;
+                    break;
+                }
+
+                // Selectable / PointerHandler のあるノードを優先
+                if (current.GetComponent<Selectable>() != null ||
+                    current.GetComponent<IPointerClickHandler>() != null)
+                {
+                    lastBeforeCanvas = current;
                 }
 
                 current = current.parent;
             }
 
-            return candidate.gameObject;
+            return lastBeforeCanvas.gameObject;
+        }
+
+        /// <summary>
+        /// LayoutElement 等を潰して、非表示化した行が空行として残らないようにする。
+        /// </summary>
+        private static void CollapseLayout(GameObject root)
+        {
+            if (root == null) return;
+
+            foreach (var le in root.GetComponentsInChildren<LayoutElement>(true))
+            {
+                try
+                {
+                    le.ignoreLayout = true;
+                    le.preferredHeight = 0f;
+                    le.minHeight = 0f;
+                    le.flexibleHeight = 0f;
+                }
+                catch (Exception ex)
+                {
+                    NoBackgroundInputPlugin.Log?.LogWarning(
+                        $"[MenuPatch] CollapseLayout(LayoutElement='{le}') 例外 ex={ex}");
+                }
+            }
+
+            var rect = root.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                try
+                {
+                    rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 0f);
+                }
+                catch (Exception ex)
+                {
+                    NoBackgroundInputPlugin.Log?.LogWarning(
+                        $"[MenuPatch] CollapseLayout(RectTransform='{rect}') 例外 ex={ex}");
+                }
+            }
         }
 
         /// <summary>
@@ -605,6 +650,16 @@ namespace NoBackgroundInput
             // Unity 側または OS 側どちらかが非アクティブなら常にブロック
             if (!unityFocused || !osActive)
             {
+                try
+                {
+                    // 非アクティブ状態で溜まった入力をリセットして初回から拾われないようにする
+                    Input.ResetInputAxes();
+                }
+                catch (Exception ex)
+                {
+                    NoBackgroundInputPlugin.Log?.LogWarning($"[Block] ResetInputAxes 例外: {ex}");
+                }
+
                 NoBackgroundInputPlugin.Log?.LogInfo(
                     $"[Block] unityFocused={unityFocused}, osActive={osActive} のため {methodName}({extraInfo}) をブロックします。");
                 return true;
