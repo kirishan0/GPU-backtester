@@ -59,3 +59,22 @@ Unity 側は `Application.isFocused` が `false` のときに入力更新をス�
 - Harmony パッチは `BepInEx/plugins` 配下に配置したプラグイン DLL から登録する。`CloverAPI` が必須な mod であれば依存関係に追加する。
 - ゲーム更新でクラス名やメニュー構造が変わる可能性があるため、パッチ対象のメソッド名は実行時ログで確認する。
 - フォーカス抑止とメニュー改変を両方行う場合、1 つのプラグインにまとめても問題ない。
+
+## git pull 時の競合を解消する手順メモ
+`project/research` 配下に追加した 2 つのサンプル（`NoBackgroundInput_PIDFocus.cs` と `RunInBackgroundOff.cs`）がまだローカルに存在する状態で、リモート側に別の変更が入っていると `git pull` 時に競合することがあります。以下の手順で解消できます。
+
+1. まずローカル変更をコミットしておくか、一時退避する場合は `git stash push -m "cloverpit focus files"` を実行する。
+2. リモートをフェッチし、追跡ブランチを確認する。
+   ```bash
+   git fetch --all
+   git status -sb
+   ```
+3. `git pull --rebase` を試し、競合が出た場合は対象ファイルを開いて `<<<<<<<` マーカーを解消する。今回のサンプルを優先する場合は `project/research/NoBackgroundInput_PIDFocus.cs` と `project/research/RunInBackgroundOff.cs` の「current 変更」を残し、不要であれば逆に「incoming 変更」を残す。
+4. 競合を解消したら以下を実行してリベースを継続する。
+   ```bash
+   git add project/research/NoBackgroundInput_PIDFocus.cs project/research/RunInBackgroundOff.cs project/research/cloverpit_focus.md
+   git rebase --continue
+   ```
+5. スタッシュしていた場合は `git stash pop` で戻し、追加で競合したら同様に解消する。
+
+手元でどうしても競合が解けない場合は、上記 2 ファイルと本メモを一度退避してから `git pull --rebase` を行い、必要なら退避した最新版を手動で上書きしてください。
