@@ -1,7 +1,10 @@
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace NoBackgroundInput
@@ -16,7 +19,7 @@ namespace NoBackgroundInput
     {
         public const string PluginGuid = "yourname.nobackgroundinput.runoff";
         public const string PluginName = "NoBackgroundInput_RunInBackgroundOff";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
 
         internal static ManualLogSource Log;
         private Harmony _harmony;
@@ -32,9 +35,9 @@ namespace NoBackgroundInput
             // 他の mod が true に戻す場合があるので、定期的に監視する
             StartCoroutine(KeepRunInBackgroundOff());
 
-            // ScreenMenuScript.Open のオプションを触る例（QOLverPit と同等）
+            // ScreenMenuScript.Open をリフレクションでパッチ（型が見つからない環境でもコンパイル可能にする）
             _harmony = new Harmony(PluginGuid);
-            _harmony.PatchAll();
+            TitleScreenRemoveNewGame.TryPatch(_harmony);
         }
 
         private void OnDestroy()
@@ -67,21 +70,94 @@ namespace NoBackgroundInput
 
     /// <summary>
     /// タイトル画面の「新規ゲーム」行を無効化する例。
-    /// QOLverPit の TitleScreenPatch.cs と同様に ScreenMenuScript.Open を書き換える。
-    /// CloverAPI 依存の翻訳関数を直接呼び出せるように using を追加している。
+    /// ScreenMenuScript がビルド環境に存在しない場合でもコンパイルできるよう、
+    /// リフレクションで型を取得して Harmony パッチを当てる。
     /// </summary>
-    [HarmonyPatch(typeof(ScreenMenuScript), nameof(ScreenMenuScript.Open))]
     internal static class TitleScreenRemoveNewGame
     {
-        [HarmonyPrefix]
-        internal static void RemoveNewGame(ref string[] options, ref ScreenMenuScript.OptionEvent[] optionEvents)
+        private static Type _screenMenuType;
+        private static Type _optionEventType;
+        private static MethodInfo _targetOpen;
+
+        internal static void TryPatch(Harmony harmony)
         {
-            // CloverAPI の Translation/Strings を利用してメニューの実ラベルに揃える
-            var newGameLabel = Strings.Sanitize(Strings.SantizationKind.menus, Translation.Get("SCREEN_MENU_OPTION_NEW_RUN"));
-            var continueLabel = Strings.Sanitize(Strings.SantizationKind.menus, Translation.Get("SCREEN_MENU_OPTION_CONTINUE"));
+            try
+            {
+                _screenMenuType = AccessTools.TypeByName("ScreenMenuScript");
+                if (_screenMenuType == null)
+                {
+                    RunInBackgroundOffPlugin.Log?.LogInfo("[TitleScreen] ScreenMenuScript が見つからなかったためパッチをスキップします");
+                    return;
+                }
+
+                _optionEventType = AccessTools.Inner(_screenMenuType, "OptionEvent");
+                if (_optionEventType == null)
+                {
+                    RunInBackgroundOffPlugin.Log?.LogInfo("[TitleScreen] ScreenMenuScript.OptionEvent が見つからなかったためパッチをスキップします");
+                    return;
+                }
+
+                _targetOpen = AccessTools.Method(_screenMenuType, "Open", new[] { typeof(string[]), _optionEventType.MakeArrayType() });
+                if (_targetOpen == null)
+                {
+                    RunInBackgroundOffPlugin.Log?.LogInfo("[TitleScreen] ScreenMenuScript.Open(string[], OptionEvent[]) が見つからなかったためパッチをスキップします");
+                    return;
+                }
+
+                var prefix = new HarmonyMethod(typeof(TitleScreenRemoveNewGame).GetMethod(nameof(RemoveNewGame), BindingFlags.Static | BindingFlags.NonPublic));
+                harmony.Patch(_targetOpen, prefix: prefix);
+
+                RunInBackgroundOffPlugin.Log?.LogInfo("[TitleScreen] ScreenMenuScript.Open に新規ゲーム削除パッチを適用しました");
+            }
+            catch (Exception ex)
+            {
+                RunInBackgroundOffPlugin.Log?.LogWarning($"[TitleScreen] パッチ適用中に例外: {ex}");
+            }
+        }
+
+        // HarmonyPrefix 用。OptionEvent[] を System.Array で受けることで、型が手元になくてもコンパイルできるようにする。
+        private static void RemoveNewGame(ref string[] options, ref Array optionEvents)
+        {
+            if (_screenMenuType == null || _optionEventType == null || _targetOpen == null)
+                return;
 
             if (options == null || optionEvents == null)
                 return;
+
+            // CloverAPI がある場合は翻訳済みラベルを使用し、なければデフォルト文字列にフォールバック
+            string newGameLabel = "New Game";
+            string continueLabel = "Continue";
+
+            try
+            {
+                var stringsType = AccessTools.TypeByName("Strings");
+                var translationType = AccessTools.TypeByName("Translation");
+
+                if (stringsType != null && translationType != null)
+                {
+                    var sanitizeKindType = stringsType.GetNestedType("SantizationKind", BindingFlags.Public | BindingFlags.NonPublic);
+                    var sanitizeKind = sanitizeKindType != null ? Enum.Parse(sanitizeKindType, "menus") : null;
+                    var sanitize = sanitizeKind != null
+                        ? AccessTools.Method(stringsType, "Sanitize", new[] { sanitizeKind.GetType(), typeof(string) })
+                        : null;
+                    var translationGet = AccessTools.Method(translationType, "Get", new[] { typeof(string) });
+
+                    if (sanitize != null && translationGet != null)
+                    {
+                        var newGameRaw = translationGet.Invoke(null, new object[] { "SCREEN_MENU_OPTION_NEW_RUN" }) as string;
+                        var continueRaw = translationGet.Invoke(null, new object[] { "SCREEN_MENU_OPTION_CONTINUE" }) as string;
+
+                        if (!string.IsNullOrEmpty(newGameRaw))
+                            newGameLabel = sanitize.Invoke(null, new object[] { sanitizeKind, newGameRaw }) as string ?? newGameLabel;
+                        if (!string.IsNullOrEmpty(continueRaw))
+                            continueLabel = sanitize.Invoke(null, new object[] { sanitizeKind, continueRaw }) as string ?? continueLabel;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RunInBackgroundOffPlugin.Log?.LogDebug($"[TitleScreen] 翻訳ラベル取得中に例外: {ex}");
+            }
 
             bool hasContinue = false;
             bool hasNewGame = false;
@@ -91,30 +167,36 @@ namespace NoBackgroundInput
                 if (opt == newGameLabel) hasNewGame = true;
             }
 
-            // Continue があるときだけ New Game を消す（タイトル初期メニューの誤操作防止）
-            if (hasContinue && hasNewGame)
+            if (!hasContinue || !hasNewGame)
+                return;
+
+            var newOptions = new List<string>(options.Length);
+            var newEvents = new ArrayList(optionEvents.Length);
+
+            for (int i = 0; i < options.Length; i++)
             {
-                var newOptions = new System.Collections.Generic.List<string>(options.Length);
-                var newEvents = new System.Collections.Generic.List<ScreenMenuScript.OptionEvent>(optionEvents.Length);
-
-                for (int i = 0; i < options.Length; i++)
+                if (options[i] == newGameLabel)
                 {
-                    if (options[i] == newGameLabel)
-                    {
-                        Log?.LogInfo("[TitleScreen] 新規ゲームをメニューから削除しました");
-                        continue; // スキップ
-                    }
-
-                    newOptions.Add(options[i]);
-                    if (i < optionEvents.Length)
-                    {
-                        newEvents.Add(optionEvents[i]);
-                    }
+                    RunInBackgroundOffPlugin.Log?.LogInfo("[TitleScreen] 新規ゲームをメニューから削除しました");
+                    continue;
                 }
 
-                options = newOptions.ToArray();
-                optionEvents = newEvents.ToArray();
+                newOptions.Add(options[i]);
+                if (i < optionEvents.Length)
+                {
+                    newEvents.Add(optionEvents.GetValue(i));
+                }
             }
+
+            options = newOptions.ToArray();
+
+            var typedEvents = Array.CreateInstance(_optionEventType, newEvents.Count);
+            for (int i = 0; i < newEvents.Count; i++)
+            {
+                typedEvents.SetValue(newEvents[i], i);
+            }
+
+            optionEvents = typedEvents;
         }
     }
 }

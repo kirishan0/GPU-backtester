@@ -41,6 +41,7 @@ Unity 側は `Application.isFocused` が `false` のときに入力更新をス�
 ### 起動直後から非アクティブの場合に効く runInBackground 強制 OFF 方式
 - BepInExPack 環境では `Application.runInBackground` が true に書き換えられ、ウィンドウが背面にあってもゲーム側の Update が動き続けるケースがある。
 - `project/research/RunInBackgroundOff.cs` では `Application.runInBackground = false` を起動直後に設定し、1 秒おきに再設定して他の mod からの上書きを打ち消す。
+- `ScreenMenuScript` や CloverAPI の翻訳型が手元に無い環境でもビルドできるよう、タイトルメニューのパッチ部分はリフレクション経由の動的パッチに変更している（実行時に型が見つからなければ自動でスキップ）。
 - Update ループそのものが止まるため、ゲーム開始時に非アクティブでも入力が通ってしまう問題を避けられる。前述の Harmony 入力パッチと併用すると、フォーカス復帰後の安全策も保てる。
 
 ## 対策案 B: 続きからプレイのボタンを無効化/非表示にする
