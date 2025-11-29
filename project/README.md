@@ -47,6 +47,18 @@ python -m project.gui
 
 CPUテスターやGPUモックをGUIから実行でき、設定ファイルのパラメータも編集可能です。
 
+## 自動右クリックツール
+
+右クリックを指定間隔で自動実行する軽量GUIです。
+
+```bash
+python -m project.auto_right_clicker
+```
+
+- ミリ秒単位の間隔指定
+- 開始/停止ボタンと同じ動作のホットキー(任意に設定可)
+- PyInstallerでexe化する場合は`requirements.txt`の依存を含めてください
+
 ## ログと出力
 
 - `logs/` に実行ログ
